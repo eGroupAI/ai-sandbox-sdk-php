@@ -48,7 +48,7 @@ final class AiSandboxClient
                 curl_close($ch);
                 if ($attempt < $this->maxRetries) {
                     $attempt++;
-                    usleep(200000 * $attempt);
+                    usleep(HttpRetryPolicy::getRetryDelayMicros($attempt));
                     continue;
                 }
                 throw new \RuntimeException("Network error: {$error}");
@@ -58,7 +58,7 @@ final class AiSandboxClient
 
             if (HttpRetryPolicy::shouldRetryTransientHttpStatus($method, $status) && $attempt < $this->maxRetries) {
                 $attempt++;
-                usleep(200000 * $attempt);
+                usleep(HttpRetryPolicy::getRetryDelayMicros($attempt));
                 continue;
             }
             if ($status >= 400) {

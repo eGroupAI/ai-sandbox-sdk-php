@@ -6,7 +6,7 @@ namespace EGroupAI\AiSandboxSdk;
 
 final class HttpRetryPolicy
 {
-    /** 僅對 GET/HEAD 在 429 或 5xx 時建議自動重試，避免寫入重複副作用。 */
+    /** Retry 429/5xx only for GET/HEAD to avoid duplicate write side effects. */
     public static function shouldRetryTransientHttpStatus(string $method, int $status): bool
     {
         if ($status !== 429 && ($status < 500 || $status > 599)) {
@@ -14,5 +14,13 @@ final class HttpRetryPolicy
         }
         $m = strtoupper(trim($method));
         return $m === "GET" || $m === "HEAD";
+    }
+
+    public static function getRetryDelayMicros(int $attempt): int
+    {
+        $safeAttempt = max(1, $attempt);
+        $delayMs = 200 * (2 ** ($safeAttempt - 1));
+        $cappedMs = min(2000, $delayMs);
+        return (int) ($cappedMs * 1000);
     }
 }
