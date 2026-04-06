@@ -66,12 +66,42 @@ final class AiSandboxClient
         return json_decode($this->request($method, $path, $payload), true, 512, JSON_THROW_ON_ERROR);
     }
 
+    /**
+     * @return list<string>
+     */
+    private function parseSseData(string $raw): array
+    {
+        $chunks = [];
+        $lines = preg_split("/\r\n|\r|\n/", $raw) ?: [];
+        foreach ($lines as $line) {
+            if (!str_starts_with($line, "data: ")) {
+                continue;
+            }
+            $data = trim(substr($line, 6));
+            if ($data === "[DONE]") {
+                break;
+            }
+            if ($data !== "") {
+                $chunks[] = $data;
+            }
+        }
+        return $chunks;
+    }
+
     public function createAgent(array $payload): array { return $this->json("POST", "/agents", $payload); }
     public function updateAgent(int $agentId, array $payload): array { return $this->json("PUT", "/agents/{$agentId}", $payload); }
     public function listAgents(string $query = ""): array { return $this->json("GET", "/agents" . ($query === "" ? "" : "?{$query}")); }
     public function getAgentDetail(int $agentId): array { return $this->json("GET", "/agents/{$agentId}"); }
     public function createChatChannel(int $agentId, array $payload): array { return $this->json("POST", "/agents/{$agentId}/channels", $payload); }
     public function sendChat(int $agentId, array $payload): array { return $this->json("POST", "/agents/{$agentId}/chat", $payload); }
+    /**
+     * @return list<string>
+     */
+    public function sendChatStream(int $agentId, array $payload): array
+    {
+        $raw = $this->request("POST", "/agents/{$agentId}/chat", $payload, "text/event-stream");
+        return $this->parseSseData($raw);
+    }
     public function getChatHistory(int $agentId, string $channelId, string $query = "limit=50&page=0"): array { return $this->json("GET", "/agents/{$agentId}/channels/{$channelId}/messages?{$query}"); }
     public function getKnowledgeBaseArticles(int $agentId, int $collectionId, string $query = "startIndex=0"): array { return $this->json("GET", "/agents/{$agentId}/collections/{$collectionId}/articles?{$query}"); }
     public function createKnowledgeBase(int $agentId, array $payload): array { return $this->json("POST", "/agents/{$agentId}/collections", $payload); }
