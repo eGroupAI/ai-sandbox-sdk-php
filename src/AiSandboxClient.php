@@ -19,6 +19,7 @@ final class AiSandboxClient
     {
         $attempt = 0;
         while (true) {
+            $traceId = null;
             $ch = curl_init("{$this->baseUrl}/api/v1{$path}");
             $headers = [
                 "Authorization: Bearer {$this->apiKey}",
@@ -34,6 +35,12 @@ final class AiSandboxClient
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT => $this->timeoutSeconds,
                 CURLOPT_POSTFIELDS => $payload !== null ? json_encode($payload, JSON_UNESCAPED_UNICODE) : null,
+                CURLOPT_HEADERFUNCTION => static function ($curl, string $headerLine) use (&$traceId): int {
+                    if (stripos($headerLine, "x-trace-id:") === 0) {
+                        $traceId = trim(substr($headerLine, strlen("x-trace-id:")));
+                    }
+                    return strlen($headerLine);
+                },
             ]);
             $raw = curl_exec($ch);
             if ($raw === false) {
@@ -46,16 +53,16 @@ final class AiSandboxClient
                 }
                 throw new \RuntimeException("Network error: {$error}");
             }
-            $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
             curl_close($ch);
 
-            if (($status === 429 || $status >= 500) && $attempt < $this->maxRetries) {
+            if (HttpRetryPolicy::shouldRetryTransientHttpStatus($method, $status) && $attempt < $this->maxRetries) {
                 $attempt++;
                 usleep(200000 * $attempt);
                 continue;
             }
             if ($status >= 400) {
-                throw new ApiException($status, $raw);
+                throw new ApiException($status, $raw, $traceId);
             }
             return $raw;
         }

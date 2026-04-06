@@ -8,6 +8,15 @@ This SDK is designed for low-change, low-touch customer integration.
 - Explicit timeout and retry controls.
 - Streaming chat support (`text/event-stream`) with `sendChatStream(...)`.
 
+## Retry safety
+
+- **429 / 5xx** automatic retries apply only to **GET** and **HEAD**. **POST / PUT / PATCH** are not retried on those status codes to avoid duplicate side effects.
+- **cURL network** failures may still be retried for all methods, up to `maxRetries`.
+
+## Errors
+
+- On HTTP errors, `ApiException` includes `traceId` when the server sends `x-trace-id`.
+
 ## Install
 
 `composer require egroupai/ai-sandbox-sdk-php`
