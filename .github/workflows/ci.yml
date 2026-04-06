@@ -16,3 +16,4 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
       - run: php tests/HttpRetryPolicyTest.php
+      - run: php tests/ClientContractTest.php

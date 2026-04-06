@@ -12,6 +12,9 @@
     "php": "^8.2"
   },
   "scripts": {
-    "test": "php tests/HttpRetryPolicyTest.php"
+    "test": [
+      "php tests/HttpRetryPolicyTest.php",
+      "php tests/ClientContractTest.php"
+    ]
   }
 }
