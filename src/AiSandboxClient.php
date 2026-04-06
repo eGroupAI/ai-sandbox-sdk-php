@@ -1,0 +1,80 @@
+<?php
+
+declare(strict_types=1);
+
+namespace EGroupAI\AiSandboxSdk;
+
+final class AiSandboxClient
+{
+    public function __construct(
+        private string $baseUrl,
+        private string $apiKey,
+        private int $timeoutSeconds = 30,
+        private int $maxRetries = 2
+    ) {
+        $this->baseUrl = rtrim($baseUrl, "/");
+    }
+
+    private function request(string $method, string $path, ?array $payload = null, string $accept = "application/json"): string
+    {
+        $attempt = 0;
+        while (true) {
+            $ch = curl_init("{$this->baseUrl}/api/v1{$path}");
+            $headers = [
+                "Authorization: Bearer {$this->apiKey}",
+                "Accept: {$accept}",
+            ];
+            if ($payload !== null) {
+                $headers[] = "Content-Type: application/json";
+            }
+
+            curl_setopt_array($ch, [
+                CURLOPT_CUSTOMREQUEST => $method,
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => $this->timeoutSeconds,
+                CURLOPT_POSTFIELDS => $payload !== null ? json_encode($payload, JSON_UNESCAPED_UNICODE) : null,
+            ]);
+            $raw = curl_exec($ch);
+            if ($raw === false) {
+                $error = curl_error($ch);
+                curl_close($ch);
+                if ($attempt < $this->maxRetries) {
+                    $attempt++;
+                    usleep(200000 * $attempt);
+                    continue;
+                }
+                throw new \RuntimeException("Network error: {$error}");
+            }
+            $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            curl_close($ch);
+
+            if (($status === 429 || $status >= 500) && $attempt < $this->maxRetries) {
+                $attempt++;
+                usleep(200000 * $attempt);
+                continue;
+            }
+            if ($status >= 400) {
+                throw new ApiException($status, $raw);
+            }
+            return $raw;
+        }
+    }
+
+    private function json(string $method, string $path, ?array $payload = null): array
+    {
+        return json_decode($this->request($method, $path, $payload), true, 512, JSON_THROW_ON_ERROR);
+    }
+
+    public function createAgent(array $payload): array { return $this->json("POST", "/agents", $payload); }
+    public function updateAgent(int $agentId, array $payload): array { return $this->json("PUT", "/agents/{$agentId}", $payload); }
+    public function listAgents(string $query = ""): array { return $this->json("GET", "/agents" . ($query === "" ? "" : "?{$query}")); }
+    public function getAgentDetail(int $agentId): array { return $this->json("GET", "/agents/{$agentId}"); }
+    public function createChatChannel(int $agentId, array $payload): array { return $this->json("POST", "/agents/{$agentId}/channels", $payload); }
+    public function sendChat(int $agentId, array $payload): array { return $this->json("POST", "/agents/{$agentId}/chat", $payload); }
+    public function getChatHistory(int $agentId, string $channelId, string $query = "limit=50&page=0"): array { return $this->json("GET", "/agents/{$agentId}/channels/{$channelId}/messages?{$query}"); }
+    public function getKnowledgeBaseArticles(int $agentId, int $collectionId, string $query = "startIndex=0"): array { return $this->json("GET", "/agents/{$agentId}/collections/{$collectionId}/articles?{$query}"); }
+    public function createKnowledgeBase(int $agentId, array $payload): array { return $this->json("POST", "/agents/{$agentId}/collections", $payload); }
+    public function updateKnowledgeBaseStatus(int $agentCollectionId, array $payload): array { return $this->json("PATCH", "/agent-collections/{$agentCollectionId}/status", $payload); }
+    public function listKnowledgeBases(int $agentId, string $query = "activeOnly=false"): array { return $this->json("GET", "/agents/{$agentId}/collections?{$query}"); }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "egroupai/ai-sandbox-sdk-php",
+  "description": "Official PHP SDK for AI Sandbox Integration API",
+  "type": "library",
+  "version": "1.0.0",
+  "autoload": {
+    "psr-4": {
+      "EGroupAI\\AiSandboxSdk\\": "src/"
+    }
+  },
+  "require": {
+    "php": "^8.2"
+  }
+}
