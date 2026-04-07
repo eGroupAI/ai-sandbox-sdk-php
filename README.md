@@ -82,3 +82,7 @@ composer require egroupai/ai-sandbox-sdk-php
 - [Integration Guide](docs/INTEGRATION.md)
 - [Quickstart Example](examples/quickstart.php)
 - [Repository](https://github.com/eGroupAI/ai-sandbox-sdk-php)
+
+## License
+
+This SDK is released under the Apache-2.0 license.
